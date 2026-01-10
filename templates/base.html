@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Flawsapp{% endblock %}</title>
+</head>
+
+<body>
+  <main>
+    <a href="{% url 'index' %}">Home</a>
+    {% if request.session.user_id %}
+      <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit">Log out</button>
+      </form>
+    {% else %}
+      <a href="{% url 'login' %}">Login</a>
+      <a href="{% url 'register' %}">Sign up</a>
+    {% endif %}
+    {% block content %}
+    {% endblock %}
+  </main>
+</body>
+
+</html>
