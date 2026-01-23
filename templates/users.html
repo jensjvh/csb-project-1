@@ -1,0 +1,6 @@
+{% extends "base.html" %} {% block content %}
+<h1>List of users:</h1>
+{% for user in users %}
+<p>{{ user }} <form action="{% url 'delete_user' user.id %}" method="post">{% csrf_token %}<button>Delete</button></p>
+
+{% endfor %} {% endblock %}

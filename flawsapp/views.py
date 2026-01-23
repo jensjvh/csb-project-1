@@ -17,18 +17,25 @@ def require_login(func):
 
     return wrapped_func
 
+def check_is_admin(request):
+    user_id = request.session["user_id"]
+    user = CustomUser.objects.get(id=user_id)
+    return user.is_admin
+
 
 def index(request: HttpRequest):
     messages = []
+    admin = False
     try:
         user_id = request.session["user_id"]
         user = CustomUser.objects.get(id=user_id)
         messages = Message.objects.all
         username = user.username
+        admin = check_is_admin(request)
     except KeyError:
         username = None
     return render(
-        request, "home.html", {"username": username, "messages": messages}, status=200
+        request, "home.html", {"username": username, "messages": messages, "is_admin": admin}, status=200
     )
 
 
@@ -36,20 +43,23 @@ def register(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         username = request.POST.get("username", None)
         password = request.POST.get("password", None)
-        ## Flaw: The password is saved as plain text to a database (AA07:2021 – Identification and Authentication Failures).
+        ## Flaw 1: The password is saved as plain text to a database (AA07:2021 – Identification and Authentication Failures).
         user = CustomUser.objects.create(username=username, password=password)
         user.save()
-        ## Flaw ends
-        ## Fix: Hash the password and store it into a database.
+        ## Flaw 1 ends
+        ## Fix 1: Hash the password and store it into a database.
         # password = encrypt_password(password)
         # try:
         #   user = CustomUser.objects.create(
         #       username=username, password=password.decode(encoding="utf-8")
         #   )
         #   user.save()
+        #   request.session["user_id"] = user.id
         # except IntegrityError:
         #   return redirect("register")
-        ## Fix ends
+        ## Also uncomment lines 72-75 to update the login method to use this.
+        ## Fix 1 ends
+        request.session["user_id"] = user.id  
         return index(request)
     return render(request, "registration/register.html", {"key": "value"}, status=201)
 
@@ -60,18 +70,28 @@ def login(request: HttpRequest) -> HttpResponse:
         raw_password = request.POST.get("password", None)
 
         try:
-            ## Flaw starts: Raw SQL query is used for finding the desired user (A03:2021 – Injection)
+            ## Flaw 2 starts: Raw SQL query is used for finding the desired user (A03:2021 – Injection)
             query = f"SELECT * FROM flawsapp_customuser WHERE username = '{username}'"
             try:
               user = CustomUser.objects.raw(query)[0]
+              password = user.password
+              if password == raw_password:
+                  request.session["user_id"] = user.id
+                  return index(request)
+              # password = user.password.encode('utf-8')
+              # if check_password(password, raw_password):
+              #     request.session["user_id"] = user.id
+              #     return index(request)
             except IndexError:
               return HttpResponse("No users exist")
-            ## Fix:
+            ## Flaw 2 ends
+            ## Fix 2:
             # user = CustomUser.objects.get(username=username)
-            password = user.password.encode('utf-8')
-            if check_password(password, raw_password):
-                request.session["user_id"] = user.id
-                return index(request)
+            # password = user.password.encode('utf-8')
+            # if check_password(password, raw_password):
+            #     request.session["user_id"] = user.id
+            #     return index(request)
+            ## Fix 2 ends
         except CustomUser.DoesNotExist:
             return HttpResponse("Unknown user")
     return render(request, "registration/login.html", {"key": "value"})
@@ -99,8 +119,28 @@ def create_message(request: HttpRequest) -> HttpResponse:
             return HttpResponseNotFound("You are not logged in")
     return index(request)
 
+## Flaw 3: User view and deletion URLs are available to any user. (A01:2021 - Broken Access Control)
+@require_login
+def users(request):
+    # Fix 3: Check for admin status
+    is_admin = check_is_admin(request)
+    if not is_admin:
+        return index(request)
+    # Fix 3 ends
+    users_list = CustomUser.objects.all()
+    return render(request, "users.html", {"users": users_list})
+
 
 @require_login
-def secret(request):
-    users = CustomUser.objects.all()
-    return render(request, "secret.html", {"users": users})
+def delete_user(request, user_id):
+    # Fix 3: Check for admin status
+    is_admin = check_is_admin(request)
+    if not is_admin:
+        return index(request)
+    # Fix 3 ends
+    user = CustomUser.objects.get(id=user_id)
+    user.delete()
+    # This needs to be here to properly refresh the user list
+    users_list = CustomUser.objects.all()
+    return render(request, "users.html", {"users": users_list})
+# Flaw 3 ends

@@ -12,10 +12,14 @@
   <button type="submit">Send message</button>
 </form>
 
+{% if request.session.is_admin %}
+<button>admin</button>
+{% endif %}
+
 
 <h2>Current messages:</h2>
 {% for message in messages %}
-  <p>{{ message }}</p>
+  <p>{{ message.user_id.id }} {{ message }}</p>
 {% endfor %}
 
 {% endblock%}
