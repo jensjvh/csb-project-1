@@ -3,7 +3,6 @@
 {% block content %}
 {% if request.session.user_id %}
 <p>Welcome, {{ username }}</p>
-{% endif %}
 <form method="post" action="{% url 'create_message' %}">
   {% csrf_token %}
     <label>Send a message</label>
@@ -11,15 +10,19 @@
   {{ form }}
   <button type="submit">Send message</button>
 </form>
+{% endif %}
+
 
 {% if request.session.is_admin %}
 <button>admin</button>
 {% endif %}
 
 
+{% if request.session.user_id %}
 <h2>Current messages:</h2>
 {% for message in messages %}
-  <p>{{ message.user_id.id }} {{ message }}</p>
+  <p>{{ message.user_id }} says: {{ message }}</p>
 {% endfor %}
+{% endif %}
 
 {% endblock%}

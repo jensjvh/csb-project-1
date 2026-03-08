@@ -52,8 +52,10 @@ def register(request: HttpRequest) -> HttpResponse:
         username = request.POST.get("username", None)
         password = request.POST.get("password", None)
         ## Flaw 1: The password is saved as plain text to a database (AA07:2021 – Identification and Authentication Failures).
-        user = CustomUser.objects.create(username=username, password=password)
-        user.save()
+        try:
+          user = CustomUser.objects.create(username=username, password=password)
+          user.save()
+          request.session["user_id"] = user.id
         ## Flaw 1 ends
         ## Fix 1: Hash the password and store it into a database.
         # password = encrypt_password(password)
@@ -65,11 +67,12 @@ def register(request: HttpRequest) -> HttpResponse:
         #   request.session["user_id"] = user.id
         # except IntegrityError:
         #   return redirect("register")
-        ## Also uncomment lines 72-75 to update the login method to use this.
+        ## Also uncomment lines 94-97 to update the login method to use this.
         ## Fix 1 ends
-        request.session["user_id"] = user.id  
+        except IntegrityError:
+            return redirect("register")
         return index(request)
-    return render(request, "registration/register.html", {"key": "value"}, status=201)
+    return render(request, "registration/register.html", status=201)
 
 
 ## Flaw 5: Logging in is not rate limited (A04:2021 Insecure Design)
@@ -97,7 +100,7 @@ def login(request: HttpRequest) -> HttpResponse:
               ## Fix 3 starts
               # logger.info('User failed to log in')
               ## Fix 3 ends
-              return HttpResponse("Invalid username or password")
+              return render(request, "registration/login.html", {"message": "invalid username or password"})
               # Flaw 3 ends
             ## Flaw 2 ends
             ## Fix 2 starts
@@ -109,7 +112,7 @@ def login(request: HttpRequest) -> HttpResponse:
             ## Fix 2 ends
         except CustomUser.DoesNotExist:
             return HttpResponse("Unknown user")
-    return render(request, "registration/login.html", {"key": "value"})
+    return render(request, "registration/login.html")
 
 
 def logout(request: HttpRequest) -> HttpResponse:
