@@ -3,9 +3,17 @@ from functools import wraps
 from django.db import IntegrityError
 from django.http import HttpResponse, HttpRequest, HttpResponseNotFound
 from django.shortcuts import render, redirect
+from django_ratelimit.decorators import ratelimit
 
 from .models import CustomUser, Message
 from .utils import check_password, encrypt_password
+
+import logging
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%d-%m-%Y %H:%M:%S')
+logger = logging.getLogger(__name__)
 
 
 def require_login(func):
@@ -64,13 +72,15 @@ def register(request: HttpRequest) -> HttpResponse:
     return render(request, "registration/register.html", {"key": "value"}, status=201)
 
 
+## Flaw 5: Logging in is not rate limited (A04:2021 Insecure Design)
+@ratelimit(key='ip', rate='5/m', block=True, method='POSTx1')
 def login(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         username = request.POST.get("username", None)
         raw_password = request.POST.get("password", None)
 
         try:
-            ## Flaw 2 starts: Raw SQL query is used for finding the desired user (A03:2021 – Injection)
+            ## Flaw 2: Raw SQL query is used for finding the desired user (A03:2021 Injection)
             query = f"SELECT * FROM flawsapp_customuser WHERE username = '{username}'"
             try:
               user = CustomUser.objects.raw(query)[0]
@@ -83,9 +93,14 @@ def login(request: HttpRequest) -> HttpResponse:
               #     request.session["user_id"] = user.id
               #     return index(request)
             except IndexError:
-              return HttpResponse("No users exist")
+              ## Flaw 3: Invalid logins are not logged, spam or brute force is hard to detect (A09:2021 - Security Logging and Monitoring Failures)
+              ## Fix 3 starts
+              # logger.info('User failed to log in')
+              ## Fix 3 ends
+              return HttpResponse("Invalid username or password")
+              # Flaw 3 ends
             ## Flaw 2 ends
-            ## Fix 2:
+            ## Fix 2 starts
             # user = CustomUser.objects.get(username=username)
             # password = user.password.encode('utf-8')
             # if check_password(password, raw_password):
@@ -119,28 +134,28 @@ def create_message(request: HttpRequest) -> HttpResponse:
             return HttpResponseNotFound("You are not logged in")
     return index(request)
 
-## Flaw 3: User view and deletion URLs are available to any user. (A01:2021 - Broken Access Control)
+## Flaw 4: User view and deletion URLs are available to any user. (A01:2021 Broken Access Control)
 @require_login
 def users(request):
-    # Fix 3: Check for admin status
+    # Fix 4: Check for admin status
     is_admin = check_is_admin(request)
     if not is_admin:
         return index(request)
-    # Fix 3 ends
+    # Fix 4 ends
     users_list = CustomUser.objects.all()
     return render(request, "users.html", {"users": users_list})
 
 
 @require_login
 def delete_user(request, user_id):
-    # Fix 3: Check for admin status
+    # Fix 4: Check for admin status
     is_admin = check_is_admin(request)
     if not is_admin:
         return index(request)
-    # Fix 3 ends
+    # Fix 4 ends
     user = CustomUser.objects.get(id=user_id)
     user.delete()
     # This needs to be here to properly refresh the user list
     users_list = CustomUser.objects.all()
     return render(request, "users.html", {"users": users_list})
-# Flaw 3 ends
+# Flaw 4 ends
