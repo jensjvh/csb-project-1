@@ -57,7 +57,7 @@ def register(request: HttpRequest) -> HttpResponse:
           user.save()
           request.session["user_id"] = user.id
         ## Flaw 1 ends
-        ## Fix 1: Hash the password and store it into a database.
+        ## Fix 1.1: Hash the password and store it into a database.
         # password = encrypt_password(password)
         # try:
         #   user = CustomUser.objects.create(
@@ -65,8 +65,8 @@ def register(request: HttpRequest) -> HttpResponse:
         #   )
         #   user.save()
         #   request.session["user_id"] = user.id
-        ## Also uncomment lines 93-96 to update the login method to use this.
-        ## Fix 1 ends
+        ## Also uncomment lines 93-96 to update the login method to use this (Fix 1.2).
+        ## Fix 1.1 ends
         except IntegrityError:
             return redirect("register")
         return index(request)
@@ -81,7 +81,7 @@ def login(request: HttpRequest) -> HttpResponse:
         raw_password = request.POST.get("password", None)
 
         try:
-            ## Flaw 2: Raw SQL query is used for finding the desired user (A03:2021 Injection), can be abused with the input ' OR 1=1 -- for example.
+            # ## Flaw 2: Raw SQL query is used for finding the desired user (A03:2021 Injection), can be abused with the input ' OR 1=1 -- for example.
             query = f"SELECT * FROM flawsapp_customuser WHERE username = '{username}'"
             try:
               user = CustomUser.objects.raw(query)[0]
@@ -89,19 +89,19 @@ def login(request: HttpRequest) -> HttpResponse:
               if password == raw_password:
                   request.session["user_id"] = user.id
                   return index(request)
-              ## Fix 1
+              ## Fix 1.2
               # password = user.password.encode('utf-8')
               # if check_password(password, raw_password):
               #     request.session["user_id"] = user.id
               #     return index(request)
-              ## Fix 1 ends
+              ## Fix 1.2 ends
             except IndexError:
               ## Flaw 3: Invalid logins are not logged, spam or brute force is hard to detect (A09:2021 - Security Logging and Monitoring Failures)
               # logger.info('User failed to log in')
               ## Flaw 3 ends
               return render(request, "registration/login.html", {"message": "invalid username or password"})
             ## Flaw 2 ends
-            ## Fix 2 starts (This fix needs to be used with the flaw 1 fix uncommented!!)
+            ## Fix 2 starts (This fix needs to be used with the flaw 1 fix 1.1 uncommented!!)
             # user = CustomUser.objects.get(username=username)
             # password = user.password.encode('utf-8')
             # if check_password(password, raw_password):
@@ -140,22 +140,22 @@ def create_message(request: HttpRequest) -> HttpResponse:
 ## Flaw 4: User view and deletion URLs are available to any user. (A01:2021 Broken Access Control)
 @require_login
 def users(request):
-    ## Fix 4: Check for admin status
+    ## Fix 4.1: Check for admin status
     # is_admin = check_is_admin(request)
     # if not is_admin:
     #     return index(request)
-    ## Fix 4 ends
+    ## Fix 4.1 ends
     users_list = CustomUser.objects.all()
     return render(request, "users.html", {"users": users_list})
 
 
 @require_login
 def delete_user(request, user_id):
-    ## Fix 4: Check for admin status
+    ## Fix 4.2: Check for admin status
     # is_admin = check_is_admin(request)
     # if not is_admin:
     #     return index(request)
-    ## Fix 4 ends
+    ## Fix 4.2 ends
     user = CustomUser.objects.get(id=user_id)
     user.delete()
     # This needs to be here to properly refresh the user list
