@@ -103,15 +103,17 @@ def login(request: HttpRequest) -> HttpResponse:
               return render(request, "registration/login.html", {"message": "invalid username or password"})
               # Flaw 3 ends
             ## Flaw 2 ends
-            ## Fix 2 starts
+            ## Fix 2 starts (This fix needs to be used with the flaw 1 fix uncommented!!)
             # user = CustomUser.objects.get(username=username)
             # password = user.password.encode('utf-8')
             # if check_password(password, raw_password):
             #     request.session["user_id"] = user.id
             #     return index(request)
+            # else:
+            #     return render(request, "registration/login.html", {"message": "invalid password"})
             ## Fix 2 ends
         except CustomUser.DoesNotExist:
-            return HttpResponse("Unknown user")
+            return render(request, "registration/login.html", {"message": "invalid username or password"})
     return render(request, "registration/login.html")
 
 
