@@ -74,14 +74,14 @@ def register(request: HttpRequest) -> HttpResponse:
 
 
 ## Flaw 5: Logging in is not rate limited (A04:2021 Insecure Design)
-#@ratelimit(key='ip', rate='5/m', block=True, method='POSTx1')
+#@ratelimit(key='ip', rate='5/m', block=True, method='POST')
 def login(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         username = request.POST.get("username", None)
         raw_password = request.POST.get("password", None)
 
         try:
-            ## Flaw 2: Raw SQL query is used for finding the desired user (A03:2021 Injection)
+            ## Flaw 2: Raw SQL query is used for finding the desired user (A03:2021 Injection), can be abused with the input ' OR 1=1 -- for example.
             query = f"SELECT * FROM flawsapp_customuser WHERE username = '{username}'"
             try:
               user = CustomUser.objects.raw(query)[0]
