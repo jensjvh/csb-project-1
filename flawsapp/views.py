@@ -67,7 +67,7 @@ def register(request: HttpRequest) -> HttpResponse:
         #   request.session["user_id"] = user.id
         # except IntegrityError:
         #   return redirect("register")
-        ## Also uncomment lines 94-97 to update the login method to use this.
+        ## Also uncomment lines 95-98 to update the login method to use this.
         ## Fix 1 ends
         except IntegrityError:
             return redirect("register")
