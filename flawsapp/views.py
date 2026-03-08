@@ -76,7 +76,7 @@ def register(request: HttpRequest) -> HttpResponse:
 
 
 ## Flaw 5: Logging in is not rate limited (A04:2021 Insecure Design)
-@ratelimit(key='ip', rate='5/m', block=True, method='POSTx1')
+#@ratelimit(key='ip', rate='5/m', block=True, method='POSTx1')
 def login(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         username = request.POST.get("username", None)
@@ -91,10 +91,12 @@ def login(request: HttpRequest) -> HttpResponse:
               if password == raw_password:
                   request.session["user_id"] = user.id
                   return index(request)
+              ## Fix 1
               # password = user.password.encode('utf-8')
               # if check_password(password, raw_password):
               #     request.session["user_id"] = user.id
               #     return index(request)
+              ## Fix 1 ends
             except IndexError:
               ## Flaw 3: Invalid logins are not logged, spam or brute force is hard to detect (A09:2021 - Security Logging and Monitoring Failures)
               ## Fix 3 starts
@@ -140,25 +142,25 @@ def create_message(request: HttpRequest) -> HttpResponse:
 ## Flaw 4: User view and deletion URLs are available to any user. (A01:2021 Broken Access Control)
 @require_login
 def users(request):
-    # Fix 4: Check for admin status
-    is_admin = check_is_admin(request)
-    if not is_admin:
-        return index(request)
-    # Fix 4 ends
+    ## Fix 4: Check for admin status
+    # is_admin = check_is_admin(request)
+    # if not is_admin:
+    #     return index(request)
+    ## Fix 4 ends
     users_list = CustomUser.objects.all()
     return render(request, "users.html", {"users": users_list})
 
 
 @require_login
 def delete_user(request, user_id):
-    # Fix 4: Check for admin status
-    is_admin = check_is_admin(request)
-    if not is_admin:
-        return index(request)
-    # Fix 4 ends
+    ## Fix 4: Check for admin status
+    # is_admin = check_is_admin(request)
+    # if not is_admin:
+    #     return index(request)
+    ## Fix 4 ends
     user = CustomUser.objects.get(id=user_id)
     user.delete()
     # This needs to be here to properly refresh the user list
     users_list = CustomUser.objects.all()
     return render(request, "users.html", {"users": users_list})
-# Flaw 4 ends
+## Flaw 4 ends
