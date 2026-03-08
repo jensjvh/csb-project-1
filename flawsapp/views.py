@@ -97,11 +97,9 @@ def login(request: HttpRequest) -> HttpResponse:
               ## Fix 1 ends
             except IndexError:
               ## Flaw 3: Invalid logins are not logged, spam or brute force is hard to detect (A09:2021 - Security Logging and Monitoring Failures)
-              ## Fix 3 starts
               # logger.info('User failed to log in')
-              ## Fix 3 ends
+              ## Flaw 3 ends
               return render(request, "registration/login.html", {"message": "invalid username or password"})
-              # Flaw 3 ends
             ## Flaw 2 ends
             ## Fix 2 starts (This fix needs to be used with the flaw 1 fix uncommented!!)
             # user = CustomUser.objects.get(username=username)
